@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getProposal, getProposalEvidence, getProposalReview, reviewProposal } from "@/lib/genlayer/contracts";
+import { getProposal, getProposalEvidence, getProposalReview, reviewProposal, getRound, getRoundRanking } from "@/lib/genlayer/contracts";
+import { lifecycleLabel } from "@/lib/proposalLifecycle";
 import ContractNotice from "@/components/ui/ContractNotice";
 import { getAccountAddress } from "@/lib/genlayer/client";
 
@@ -13,19 +14,30 @@ export default function ProposalDetail() {
   const [proposal, setProposal] = useState<any>(null);
   const [evidence, setEvidence] = useState<any[]>([]);
   const [review, setReview] = useState<any>(null);
+  const [round, setRound] = useState<any>(null);
+  const [ranking, setRanking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const currentWallet = getAccountAddress();
-  const isOwner = !!proposal?.applicantWallet && proposal.applicantWallet === currentWallet;
+  const isOwner = !!proposal?.applicant && proposal.applicant.toLowerCase() === currentWallet.toLowerCase();
+  const sealed = proposal && proposal.revealed === false;
 
   const load = async () => {
     setLoading(true);
     try {
-      const [p, e, r] = await Promise.all([getProposal(proposalId), getProposalEvidence(proposalId), getProposalReview(proposalId)]);
+      const [p, e, r, rd, rk] = await Promise.all([
+        getProposal(proposalId),
+        getProposalEvidence(proposalId),
+        getProposalReview(proposalId),
+        getRound(roundId),
+        getRoundRanking(roundId),
+      ]);
       setProposal(p);
       setEvidence(e);
       setReview(r);
+      setRound(rd);
+      setRanking(rk);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -59,31 +71,45 @@ export default function ProposalDetail() {
         <div className="grid md:grid-cols-6 gap-4">
           <Meta label="Proposal ID" value={proposalId} mono />
           <Meta label="Round" value={roundId} mono />
-          <Meta label="Applicant" value={isOwner ? proposal.applicantNameOrOrg : "Private"} />
-          <Meta label="Wallet" value={isOwner ? (proposal.applicantWallet || "").slice(0, 12) + "..." : "Hidden"} mono />
-          <Meta label="Requested" value={isOwner ? `${proposal.requestedAmount || 0} ${proposal.currency || ""}` : "Hidden"} />
-          <Meta label="Status" value={proposal.status} accent />
+          <Meta label="Applicant" value={proposal.applicant ? proposal.applicant.slice(0, 10) + "…" : "—"} mono />
+          <Meta label="Visibility" value={sealed ? "SEALED · hidden before reveal" : "PUBLIC · revealed"} accent />
+          <Meta label="Requested" value={sealed ? "Hidden before reveal" : `${proposal.requested_amount || 0} ${proposal.currency || ""}`} />
+          <Meta label="Lifecycle" value={lifecycleLabel({ status: proposal.status, revealed: !!proposal.revealed, roundStatus: round?.status, hasReview: !!review, hasRanking: !!ranking })} accent />
+          <Meta label="On-chain status" value={proposal.status} />
         </div>
-        <h1 className="heading text-ivory text-3xl mt-4">{proposal.researchTitle || "Private proposal"}</h1>
+        <h1 className="heading text-ivory text-3xl mt-4">{sealed ? "Sealed application" : (proposal.title || "Untitled")}</h1>
+        {sealed && (
+          <div className="manuscript-border bg-ink/40 p-3 mt-4">
+            <div className="dossier-label">Commitment hash</div>
+            <div className="mono text-xs text-margin break-all">{proposal.commitment_hash || "—"}</div>
+            <p className="text-margin text-xs mt-2">
+              This application is commit-reveal protected. Content is hidden before reveal. After the creator closes the
+              commitment phase, the applicant can reveal to make the proposal publicly visible for GenLayer consensus review.
+            </p>
+            {isOwner && (
+              <Link href="/reveal" className="seal-tab text-xs inline-flex mt-3">Go to my reveal dashboard</Link>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 mt-8">
         <div className="lg:col-span-2 paper p-8 space-y-4">
-          <h2 className="heading text-2xl">Abstract</h2>
-          <p className="text-sm whitespace-pre-wrap">{isOwner ? proposal.abstract : proposal.publicSummary || "Summary hidden."}</p>
-          {isOwner && (
+          {sealed ? (
+            <div className="text-sm text-margin">Proposal content is hidden before reveal.</div>
+          ) : (
             <>
-              <Subsection title="Research Question" body={proposal.researchQuestion} />
-              <Subsection title="Problem Statement" body={proposal.problemStatement} />
-              <Subsection title="Literature / Context" body={proposal.literatureContext} />
+              <h2 className="heading text-2xl">Abstract</h2>
+              <p className="text-sm whitespace-pre-wrap">{proposal.abstract || proposal.public_summary || "—"}</p>
+              <Subsection title="Public Summary" body={proposal.public_summary} />
+              <Subsection title="Research Question" body={proposal.research_question} />
               <Subsection title="Methodology" body={proposal.methodology} />
               <Subsection title="Timeline" body={proposal.timeline} />
-              <Subsection title="Budget Breakdown" body={proposal.budgetBreakdown} />
-              <Subsection title="Milestones" body={proposal.milestones} />
-              <Subsection title="Expected Impact" body={proposal.impactClaims} />
-              <Subsection title="Ethics" body={proposal.ethicsConsiderations} />
-              <Subsection title="Applicant Background" body={proposal.applicantBackground} />
-              <Subsection title="Prior Work" body={proposal.priorWork} />
+              <Subsection title="Budget Breakdown" body={proposal.budget_breakdown} />
+              <Subsection title="Expected Impact" body={proposal.impact_claims} />
+              <Subsection title="Ethics" body={proposal.ethics_considerations} />
+              <Subsection title="Applicant Background" body={proposal.applicant_background} />
+              <Subsection title="Evidence Summary" body={proposal.evidence_summary} />
             </>
           )}
         </div>
@@ -102,10 +128,10 @@ export default function ProposalDetail() {
             <div key={ev.id} className="manuscript-border bg-ink/40 p-3">
               <div className="flex justify-between">
                 <span className="mono text-xs text-gold">{ev.type}</span>
-                <span className="mono text-[10px] text-margin">{isOwner ? ev.privacy : "REDACTED"}</span>
+                <span className="mono text-[10px] text-margin">{ev.privacy || "PUBLIC"}</span>
               </div>
-              <div className="heading text-ivory mt-1">{isOwner ? ev.title : "Private evidence"}</div>
-              <p className="text-margin text-xs mt-1">{isOwner ? ev.description : "Hidden from current view."}</p>
+              <div className="heading text-ivory mt-1">{ev.title || "Evidence"}</div>
+              <p className="text-margin text-xs mt-1">{ev.description || ""}</p>
             </div>
           ))}
         </div>
@@ -118,8 +144,12 @@ export default function ProposalDetail() {
         {!review ? (
           <div className="manuscript-border bg-manuscript/50 p-8 mt-4 text-center">
             <div className="heading text-ivory text-xl">AWAITING CONSENSUS REVIEW</div>
-            <p className="text-margin text-sm mt-1">This proposal has not been reviewed by GenLayer consensus yet.</p>
-            {isOwner && <button onClick={runReview} disabled={busy} className="seal-tab mt-6">{busy ? "Running consensus..." : "RUN CONSENSUS REVIEW"}</button>}
+            <p className="text-margin text-sm mt-1">
+              {sealed
+                ? "This application is still sealed. It can only be reviewed after the applicant reveals."
+                : "This proposal has not been reviewed by GenLayer consensus yet."}
+            </p>
+            {!sealed && <button onClick={runReview} disabled={busy} className="seal-tab mt-6">{busy ? "Running consensus..." : "RUN CONSENSUS REVIEW"}</button>}
             {err && <div className="text-carmine text-sm mt-3">{err}</div>}
           </div>
         ) : (
@@ -143,7 +173,7 @@ export default function ProposalDetail() {
             <div className="grid md:grid-cols-2 gap-3">
               <ReviewCard title="Evidence strength" sub={review.evidence_strength} />
               <ReviewCard title="Research relevance" sub={review.research_relevance} />
-              <ReviewCard title="Originality" sub={{ ...review.originality, reason: isOwner ? `${review.originality?.reason} (plagiarism: ${review.originality?.plagiarism_risk})` : "Sanitised" }} />
+              <ReviewCard title="Originality" sub={{ ...review.originality, reason: `${review.originality?.reason || ""} (plagiarism: ${review.originality?.plagiarism_risk || ""})` }} />
               <ReviewCard title="Methodology quality" sub={review.methodology_quality} />
               <ReviewCard title="Feasibility" sub={review.feasibility} />
               <ReviewCard title="Expected impact" sub={review.expected_impact} />
@@ -152,16 +182,16 @@ export default function ProposalDetail() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-3">
-              <Block title="Positive signals" items={isOwner ? review.positive_signals : []} tone="laurel" />
-              <Block title="Red flags" items={isOwner ? review.red_flags : []} tone="carmine" />
-              <Block title="Missing information" items={isOwner ? review.missing_information : []} tone="margin" />
+              <Block title="Positive signals" items={review.positive_signals || []} tone="laurel" />
+              <Block title="Red flags" items={review.red_flags || []} tone="carmine" />
+              <Block title="Missing information" items={review.missing_information || []} tone="margin" />
             </div>
 
             <div className="manuscript-border bg-manuscript/60 p-5">
               <div className="dossier-label">Reasoning summary</div>
-              <p className="text-ivory/85 mt-1">{isOwner ? review.reasoning_summary : "Sanitised consensus explanation only."}</p>
+              <p className="text-ivory/85 mt-1">{review.reasoning_summary || "—"}</p>
               <div className="dossier-label mt-3">Recommended action</div>
-              <p className="text-ivory/85">{isOwner ? review.recommended_action : "Restricted"}</p>
+              <p className="text-ivory/85">{review.recommended_action || "—"}</p>
             </div>
 
             <div className="flex gap-3">

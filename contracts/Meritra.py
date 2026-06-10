@@ -2,13 +2,26 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 from genlayer import *
+# Explicit error import — `from genlayer import *` does not consistently surface
+# VmUserError across SDK versions, which was the source of NameError crashes in
+# the previously deployed contract. Try the modern path first, fall back to the
+# legacy gl.vm.UserError if the host runtime only exposes that surface.
+try:
+    from genlayer.errors import VmUserError  # type: ignore
+except Exception:  # pragma: no cover - host SDK fallback
+    try:
+        from genlayer.vm import UserError as VmUserError  # type: ignore
+    except Exception:  # pragma: no cover
+        VmUserError = Exception  # last-resort fallback so the contract still loads
 import json
+import hashlib
 
 
 ALLOWED_ROUND_STATUS = {
     "DRAFT",
     "OPEN",
     "CLOSED",
+    "REVEAL_PHASE",
     "REVIEWING",
     "RANKED",
     "FINALIZED",
@@ -16,7 +29,8 @@ ALLOWED_ROUND_STATUS = {
 }
 
 ALLOWED_PROPOSAL_STATUS = {
-    "SUBMITTED",
+    "COMMITTED",
+    "REVEALED",
     "UNDER_REVIEW",
     "RECOMMENDED_FOR_FUNDING",
     "PARTIAL_FUNDING_RECOMMENDED",
@@ -27,6 +41,17 @@ ALLOWED_PROPOSAL_STATUS = {
     "APPEALED",
     "FUNDED",
 }
+
+
+def _canonical_proposal_json(p: dict) -> str:
+    """Deterministic canonical JSON for hash recomputation. Matches JS JSON.stringify
+    on sorted keys: no whitespace, ensure_ascii=False so non-ASCII chars (±, é, etc.)
+    are emitted as raw UTF-8 instead of \\u00xx escapes."""
+    return json.dumps(p, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _commitment_hash(canonical_json: str, salt: str) -> str:
+    return hashlib.sha256((canonical_json + salt).encode("utf-8")).hexdigest()
 
 ALLOWED_VERDICTS = {
     "RECOMMENDED_FOR_FUNDING",
@@ -273,6 +298,24 @@ class Meritra(gl.Contract):
         if "funding_pool" in parsed_round and float(parsed_round.get("funding_pool", 0)) < 0:
             raise VmUserError("Funding pool cannot be negative")
 
+        # Deadline ordering: application_start < application_deadline <= reveal_deadline <= review_deadline <= appeal_deadline
+        app_start = int(parsed_round.get("application_start", 0))
+        app_deadline = int(parsed_round.get("application_deadline", 0))
+        reveal_deadline = int(parsed_round.get("reveal_deadline", 0))
+        review_deadline = int(parsed_round.get("review_deadline", 0))
+        appeal_deadline = int(parsed_round.get("appeal_deadline", 0))
+
+        if app_start <= 0 or app_deadline <= 0 or reveal_deadline <= 0 or review_deadline <= 0 or appeal_deadline <= 0:
+            raise VmUserError("All deadlines (application_start, application_deadline, reveal_deadline, review_deadline, appeal_deadline) required")
+        if not (app_start < app_deadline):
+            raise VmUserError("application_start must be before application_deadline")
+        if not (app_deadline <= reveal_deadline):
+            raise VmUserError("application_deadline must be <= reveal_deadline")
+        if not (reveal_deadline <= review_deadline):
+            raise VmUserError("reveal_deadline must be <= review_deadline")
+        if not (review_deadline <= appeal_deadline):
+            raise VmUserError("review_deadline must be <= appeal_deadline")
+
         self.rounds[round_id] = json.dumps(parsed_round)
         self.round_rubrics[round_id] = json.dumps(parsed_rubric)
         self.round_proposals[round_id] = json.dumps([])
@@ -315,17 +358,19 @@ class Meritra(gl.Contract):
 
     @gl.public.write
     def close_round(self, round_id: str) -> None:
+        """Closes the commitment intake. Moves round into REVEAL_PHASE."""
         self._only_round_creator_or_protocol_owner(round_id)
 
         rnd = self._require_round_status(round_id, ["OPEN"])
-        rnd["status"] = "CLOSED"
+        rnd["status"] = "REVEAL_PHASE"
         self.rounds[round_id] = json.dumps(rnd)
 
     @gl.public.write
     def start_reviewing(self, round_id: str) -> None:
+        """Closes reveal phase and begins GenLayer review of revealed proposals only."""
         self._only_round_creator_or_protocol_owner(round_id)
 
-        rnd = self._require_round_status(round_id, ["CLOSED"])
+        rnd = self._require_round_status(round_id, ["REVEAL_PHASE", "CLOSED"])
         rnd["status"] = "REVIEWING"
         self.rounds[round_id] = json.dumps(rnd)
 
@@ -350,48 +395,35 @@ class Meritra(gl.Contract):
     # -------------------------------------------------------------------------
 
     @gl.public.write
-    def submit_proposal(self, round_id: str, proposal_json: str) -> str:
+    def submit_proposal_commitment(self, round_id: str, commitment_hash: str) -> str:
         """
-        Contract generates proposal ID.
+        Commit phase. Applicant submits ONLY a commitment_hash:
+            commitment_hash = sha256(canonical_proposal_json + salt)
 
-        proposal_json must be public/sanitised:
-        {
-          "title": "...",
-          "public_summary": "...",
-          "category": "...",
-          "requested_amount": 1000,
-          "currency": "USDC",
-          "content_hash": "sha256/private_full_application",
-          "content_cid": "ipfs/arweave/supabase_file_ref",
-          "evidence_summary": [...]
-        }
-
-        Do not place private applicant email, private docs, or full proposal body here.
+        Proposal content is NOT stored on-chain yet. The proposal is sealed
+        (hidden before reveal) until the applicant reveals it during the
+        reveal phase. Grant creator cannot commit to their own grant.
         """
 
         self._require_round_status(round_id, ["OPEN"])
         self._require_not_round_creator(round_id)
 
-        parsed = self._json_load(proposal_json, "proposal")
-
-        if "title" not in parsed or not str(parsed.get("title", "")).strip():
-            raise VmUserError("Proposal title required")
-
-        if "content_hash" not in parsed or not str(parsed.get("content_hash", "")).strip():
-            raise VmUserError("Proposal content_hash required")
-
-        if float(parsed.get("requested_amount", 0)) < 0:
-            raise VmUserError("Requested amount cannot be negative")
+        if not commitment_hash or len(commitment_hash) < 32:
+            raise VmUserError("commitment_hash required (hex sha256)")
 
         proposal_id = self._next_id("proposal", self.proposal_count)
 
-        parsed["id"] = proposal_id
-        parsed["round_id"] = round_id
-        parsed["applicant"] = self._sender()
-        parsed["status"] = "SUBMITTED"
-        parsed["created_by_contract"] = True
+        record = {
+            "id": proposal_id,
+            "round_id": round_id,
+            "applicant": self._sender(),
+            "commitment_hash": commitment_hash,
+            "status": "COMMITTED",
+            "revealed": False,
+            "created_by_contract": True,
+        }
 
-        self.proposals[proposal_id] = json.dumps(parsed)
+        self.proposals[proposal_id] = json.dumps(record)
 
         rp = json.loads(self.round_proposals[round_id]) if round_id in self.round_proposals else []
         rp.append(proposal_id)
@@ -414,6 +446,50 @@ class Meritra(gl.Contract):
         return proposal_id
 
     @gl.public.write
+    def reveal_proposal(self, proposal_id: str, proposal_json: str, salt: str) -> None:
+        """
+        Reveal phase. Applicant submits proposal_json + salt. Contract recomputes
+        sha256(canonical(proposal_json) + salt) and verifies it matches the stored
+        commitment_hash. On success the proposal content is stored publicly.
+        """
+
+        proposal = self._get_proposal(proposal_id)
+
+        if self._sender() != str(proposal.get("applicant", "")):
+            raise VmUserError("Only the original committer can reveal this proposal")
+
+        if proposal.get("revealed", False):
+            raise VmUserError("Proposal already revealed")
+
+        round_id = str(proposal.get("round_id", ""))
+        self._require_round_status(round_id, ["REVEAL_PHASE", "CLOSED"])
+
+        parsed = self._json_load(proposal_json, "proposal")
+
+        if "title" not in parsed or not str(parsed.get("title", "")).strip():
+            raise VmUserError("Proposal title required")
+        if float(parsed.get("requested_amount", 0)) < 0:
+            raise VmUserError("Requested amount cannot be negative")
+
+        canonical = _canonical_proposal_json(parsed)
+        recomputed = _commitment_hash(canonical, str(salt))
+        stored = str(proposal.get("commitment_hash", ""))
+
+        if recomputed != stored:
+            raise VmUserError("Reveal failed: hash mismatch between proposal+salt and commitment")
+
+        # Merge revealed content into the record, preserving identity/metadata.
+        parsed["id"] = proposal_id
+        parsed["round_id"] = round_id
+        parsed["applicant"] = proposal.get("applicant", "")
+        parsed["commitment_hash"] = stored
+        parsed["status"] = "REVEALED"
+        parsed["revealed"] = True
+        parsed["created_by_contract"] = True
+
+        self.proposals[proposal_id] = json.dumps(parsed)
+
+    @gl.public.write
     def add_evidence(self, proposal_id: str, evidence_json: str) -> str:
         proposal = self._get_proposal(proposal_id)
 
@@ -421,7 +497,7 @@ class Meritra(gl.Contract):
             raise VmUserError("Only proposal applicant can add evidence")
 
         round_id = str(proposal.get("round_id", ""))
-        self._require_round_status(round_id, ["OPEN", "REVIEWING"])
+        self._require_round_status(round_id, ["OPEN", "REVEAL_PHASE", "REVIEWING"])
 
         parsed = self._json_load(evidence_json, "evidence")
 
@@ -452,7 +528,10 @@ class Meritra(gl.Contract):
         proposal = self._get_proposal(proposal_id)
         round_id = str(proposal.get("round_id", ""))
 
-        self._require_round_status(round_id, ["CLOSED", "REVIEWING"])
+        if not proposal.get("revealed", False):
+            raise VmUserError("Only revealed proposals can be reviewed by consensus")
+
+        self._require_round_status(round_id, ["REVIEWING"])
 
         rubric = self.round_rubrics[round_id] if round_id in self.round_rubrics else "{}"
         evidence = self.proposal_evidence[proposal_id] if proposal_id in self.proposal_evidence else "[]"
@@ -514,7 +593,25 @@ Return STRICT JSON ONLY with this exact schema:
             res = gl.nondet.exec_prompt(prompt)
             return res.replace("```json", "").replace("```", "").strip()
 
-        result = gl.eq_principle.strict_eq(review_task)
+        result = gl.eq_principle.prompt_non_comparative(
+            review_task,
+            task="Produce a Meritra grant proposal review as strict JSON exactly matching the documented schema.",
+            criteria=(
+                "Output must be a single valid JSON object. "
+                "verdict must be one of RECOMMENDED_FOR_FUNDING, PARTIAL_FUNDING_RECOMMENDED, WAITLISTED, REJECTED, NEEDS_MORE_EVIDENCE, ESCALATE. "
+                "funding_suitability must be one of VERY_HIGH, HIGH, MODERATE, LOW, NOT_SUITABLE, UNCLEAR. "
+                "risk_level and originality.plagiarism_risk must each be one of LOW, MEDIUM, HIGH, CRITICAL. "
+                "merit_score, confidence and every subscore must be integers 0-100. "
+                "recommended_funding_amount and requested_amount must be non-negative numbers. "
+                "All required subsections (research_relevance, originality, methodology_quality, feasibility, expected_impact, "
+                "budget_reasonableness, ethics_and_risk, evidence_strength) must be present with score and reason. "
+                "positive_signals, red_flags and missing_information must be arrays of strings. "
+                "reasoning_summary and recommended_action must be non-empty strings. "
+                "The judgement must be grounded in the supplied proposal text, rubric, and evidence — no invented facts. "
+                "A validator should ACCEPT outputs whose verdict and scores are consistent with the rubric and evidence even "
+                "if free-text wording differs from another plausible review."
+            ),
+        )
         parsed = json.loads(result)
 
         self._validate_review(parsed)
@@ -547,7 +644,7 @@ Return STRICT JSON ONLY with this exact schema:
     def rank_round_proposals(self, round_id: str) -> None:
         self._only_round_creator_or_protocol_owner(round_id)
 
-        rnd = self._require_round_status(round_id, ["CLOSED", "REVIEWING"])
+        rnd = self._require_round_status(round_id, ["REVIEWING"])
 
         rubric = self.round_rubrics[round_id] if round_id in self.round_rubrics else "{}"
         proposal_ids = json.loads(self.round_proposals[round_id]) if round_id in self.round_proposals else []
@@ -558,6 +655,8 @@ Return STRICT JSON ONLY with this exact schema:
         for pid in proposal_ids:
             if pid in self.proposals:
                 proposal = json.loads(self.proposals[pid])
+                if not proposal.get("revealed", False):
+                    continue
                 proposals_data.append(self._safe_public_proposal(proposal) | {
                     "id": pid,
                     "status": proposal.get("status", ""),
@@ -619,7 +718,21 @@ Return STRICT JSON ONLY:
             res = gl.nondet.exec_prompt(prompt)
             return res.replace("```json", "").replace("```", "").strip()
 
-        result = gl.eq_principle.strict_eq(rank_task)
+        result = gl.eq_principle.prompt_non_comparative(
+            rank_task,
+            task="Produce a Meritra round ranking as strict JSON exactly matching the documented schema.",
+            criteria=(
+                "Output must be a single valid JSON object. "
+                "ranking_status must be one of RANKED, PARTIALLY_RANKED, NEEDS_MORE_EVIDENCE, ESCALATE. "
+                "ranked_proposals must be an array; each entry must include proposal_id, integer rank>=1, "
+                "merit_score 0-100, non-negative recommended_funding, and decision in "
+                "(RECOMMENDED_FOR_FUNDING, PARTIAL_FUNDING_RECOMMENDED, WAITLISTED, REJECTED, NEEDS_MORE_EVIDENCE, ESCALATE). "
+                "ranking_confidence must be 0-100. funding_summary.total_recommended must not exceed total_pool. "
+                "reasoning_summary must be a non-empty string and rationale must be consistent with the prior reviews. "
+                "A validator should ACCEPT a ranking whose ordering, decisions and funding splits are reasonable for the "
+                "submitted reviews even if free-text justifications are phrased differently."
+            ),
+        )
         parsed = json.loads(result)
 
         self._validate_ranking(parsed)
@@ -673,7 +786,19 @@ Return STRICT JSON ONLY:
             res = gl.nondet.exec_prompt(prompt)
             return res.replace("```json", "").replace("```", "").strip()
 
-        result = gl.eq_principle.strict_eq(task)
+        result = gl.eq_principle.prompt_non_comparative(
+            task,
+            task="Compare two grant proposals and emit a similarity/plagiarism JSON judgement.",
+            criteria=(
+                "Output must be a single valid JSON object. "
+                "similarity_verdict must be one of NO_SIGNIFICANT_SIMILARITY, NORMAL_TEMPLATE_SIMILARITY, "
+                "POSSIBLE_DUPLICATE, LIKELY_PLAGIARISED, NEEDS_MANUAL_REVIEW. "
+                "plagiarism_risk must be one of LOW, MEDIUM, HIGH, CRITICAL. similarity_score must be 0-100. "
+                "matched_elements must be an array of strings. explanation must be a non-empty string. "
+                "Normal grant boilerplate must not be flagged as plagiarism. A validator should ACCEPT outputs whose "
+                "verdict/score are consistent with the visible overlap even if wording differs."
+            ),
+        )
         parsed = json.loads(result)
 
         if parsed.get("similarity_verdict") not in ALLOWED_SIMILARITY_VERDICTS:
@@ -785,7 +910,22 @@ Return STRICT JSON ONLY:
             res = gl.nondet.exec_prompt(prompt)
             return res.replace("```json", "").replace("```", "").strip()
 
-        result = gl.eq_principle.strict_eq(task)
+        result = gl.eq_principle.prompt_non_comparative(
+            task,
+            task="Produce a Meritra appeal review as strict JSON exactly matching the documented schema.",
+            criteria=(
+                "Output must be a single valid JSON object. "
+                "appeal_decision must be one of ORIGINAL_DECISION_UPHELD, ORIGINAL_DECISION_ADJUSTED, "
+                "MORE_EVIDENCE_REQUIRED, ESCALATE_TO_HUMAN_PANEL, APPEAL_REJECTED. "
+                "new_proposal_decision must be one of RECOMMENDED_FOR_FUNDING, PARTIAL_FUNDING_RECOMMENDED, "
+                "WAITLISTED, REJECTED, NEEDS_MORE_EVIDENCE, ESCALATE. "
+                "new_merit_score and confidence must be 0-100. adjusted_recommended_funding must be non-negative. "
+                "accepted_arguments and rejected_arguments must be arrays of strings. "
+                "reasoning_summary and final_recommendation must be non-empty strings, grounded in the prior review "
+                "and the appeal content. A validator should ACCEPT outputs whose decision and reasoning are reasonable "
+                "for the supplied appeal even if wording differs."
+            ),
+        )
         parsed = json.loads(result)
 
         if parsed.get("appeal_decision") not in ALLOWED_APPEAL_DECISIONS:
@@ -901,7 +1041,19 @@ Return STRICT JSON ONLY:
             res = gl.nondet.exec_prompt(prompt)
             return res.replace("```json", "").replace("```", "").strip()
 
-        result = gl.eq_principle.strict_eq(task)
+        result = gl.eq_principle.prompt_non_comparative(
+            task,
+            task="Produce a Meritra milestone review as strict JSON exactly matching the documented schema.",
+            criteria=(
+                "Output must be a single valid JSON object. "
+                "milestone_decision must be one of ACCEPTED, PARTIALLY_ACCEPTED, REJECTED, NEEDS_MORE_EVIDENCE, ESCALATE. "
+                "delivery_score and confidence must be 0-100. release_next_tranche must be a boolean. "
+                "accepted_deliverables, missing_deliverables and quality_concerns must be arrays of strings. "
+                "reasoning_summary and recommended_action must be non-empty strings, grounded in the proposal and the "
+                "milestone evidence. A validator should ACCEPT outputs whose decision and recommended_action are "
+                "reasonable for the milestone evidence even if wording differs."
+            ),
+        )
         parsed = json.loads(result)
 
         if parsed.get("milestone_decision") not in ALLOWED_MILESTONE_DECISIONS:
@@ -1001,6 +1153,9 @@ Return STRICT JSON ONLY:
             "similarity_count": int(self.similarity_count),
             "last_round_id": self.protocol_stats["last_round_id"] if "last_round_id" in self.protocol_stats else "",
             "last_proposal_id": self.protocol_stats["last_proposal_id"] if "last_proposal_id" in self.protocol_stats else "",
+            "last_evidence_id": self.protocol_stats["last_evidence_id"] if "last_evidence_id" in self.protocol_stats else "",
+            "last_appeal_id": self.protocol_stats["last_appeal_id"] if "last_appeal_id" in self.protocol_stats else "",
+            "last_milestone_id": self.protocol_stats["last_milestone_id"] if "last_milestone_id" in self.protocol_stats else "",
         })
 
     # -------------------------------------------------------------------------

@@ -3,11 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  getRound, getRubric, getRoundProposals, getProposal, getRoundRanking,
+  getRound, getRubric, getRoundProposals, getProposal, getRoundRanking, getProposalReview,
   closeRound, finalizeRound, openRound, startReviewing,
 } from "@/lib/genlayer/contracts";
 import ContractNotice from "@/components/ui/ContractNotice";
 import { getAccountAddress } from "@/lib/genlayer/client";
+import { lifecycleLabel } from "@/lib/proposalLifecycle";
 
 const toSecs = (v?: string | number) => typeof v === "number" ? v : v ? Math.floor(new Date(v).getTime() / 1000) : 0;
 const nowSecs = () => Math.floor(Date.now() / 1000);
@@ -23,13 +24,13 @@ export default function RoundDetail() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const currentWallet = getAccountAddress();
-  const isCreator = !!round?.createdByWallet && round.createdByWallet === currentWallet;
+  const isCreator = !!round?.creator && round.creator.toLowerCase() === currentWallet.toLowerCase();
   const isOpen = round?.status === "OPEN";
+  const isRevealPhase = round?.status === "REVEAL_PHASE";
   const isClosed = round?.status === "CLOSED";
   const isReviewing = round?.status === "REVIEWING";
   const canSubmit = isOpen && nowSecs() >= toSecs(round?.application_start) && nowSecs() <= toSecs(round?.application_deadline) && !isCreator;
-  const canReview = isClosed || isReviewing;
-  const canAppeal = nowSecs() <= toSecs(round?.appeal_deadline);
+  const canStartReview = (isRevealPhase || isClosed) && isCreator;
 
   const load = async () => {
     setLoading(true);
@@ -41,7 +42,12 @@ export default function RoundDetail() {
       setRound(r);
       setRubric(rb || []);
       setRanking(rk);
-      const props = await Promise.all(ids.map((id) => getProposal(id).then((p) => p ? { id, ...p } : null)));
+      const props = await Promise.all(ids.map(async (id) => {
+        const p = await getProposal(id);
+        if (!p) return null;
+        const rv = await getProposalReview(id).catch(() => null);
+        return { id, ...p, _hasReview: !!rv };
+      }));
       setProposals(props.filter(Boolean));
     } catch (e) {
       setError((e as Error).message);
@@ -71,11 +77,12 @@ export default function RoundDetail() {
             <div className="text-margin mt-1">{round.fundingOrganisation}</div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {canSubmit ? <Link href={`/rounds/${roundId}/submit-proposal`} className="seal-tab text-xs">Submit Proposal</Link> : <div className="tab-button text-xs opacity-70">{isCreator ? "Creator cannot submit" : "Submissions closed"}</div>}
-            {round.status === "DRAFT" && <button onClick={() => action(() => openRound(roundId), "open")} className="seal-tab text-xs">{busy === "open" ? "Opening..." : "Open Round"}</button>}
-            {isOpen && <button onClick={() => action(() => closeRound(roundId), "close")} className="tab-button">{busy === "close" ? "Closing..." : "Close Round"}</button>}
-            {canReview && <button onClick={() => action(() => startReviewing(roundId), "reviewing")} className="seal-tab text-xs">{busy === "reviewing" ? "Starting..." : "Start Reviewing"}</button>}
-            {canReview && <button onClick={() => action(() => finalizeRound(roundId), "fin")} className="tab-button">{busy === "fin" ? "Finalizing..." : "Finalize"}</button>}
+            {canSubmit ? <Link href={`/rounds/${roundId}/submit-proposal`} className="seal-tab text-xs">Submit Sealed Application</Link> : <div className="tab-button text-xs opacity-70">{isCreator ? "Creator cannot submit" : "Commitments closed"}</div>}
+            <Link href="/reveal" className="tab-button text-xs">My Reveal Dashboard</Link>
+            {round.status === "DRAFT" && isCreator && <button onClick={() => action(() => openRound(roundId), "open")} className="seal-tab text-xs">{busy === "open" ? "Opening..." : "Open Round"}</button>}
+            {isOpen && isCreator && <button onClick={() => action(() => closeRound(roundId), "close")} className="tab-button">{busy === "close" ? "Closing..." : "Close Commitments → Reveal Phase"}</button>}
+            {canStartReview && <button onClick={() => action(() => startReviewing(roundId), "reviewing")} className="seal-tab text-xs">{busy === "reviewing" ? "Starting..." : "Start Reviewing"}</button>}
+            {(isReviewing || round.status === "RANKED") && isCreator && <button onClick={() => action(() => finalizeRound(roundId), "fin")} className="tab-button">{busy === "fin" ? "Finalizing..." : "Finalize"}</button>}
           </div>
         </div>
         <div className="grid md:grid-cols-5 gap-4 mt-6">
@@ -94,7 +101,30 @@ export default function RoundDetail() {
         <div className="grid md:grid-cols-2 gap-3">{rubric.map((r: any) => <div key={r.id} className="manuscript-border bg-ink/40 p-4"><div className="flex justify-between"><span className="mono text-gold text-sm">{r.category}</span><span className="score-pill">w {r.weight}</span></div><p className="text-ivory/80 text-sm mt-2">{r.description}</p>{r.strongEvidenceDefinition && <p className="text-margin text-xs mt-2"><em>Strong:</em> {r.strongEvidenceDefinition}</p>}{r.weakEvidenceDefinition && <p className="text-margin text-xs"><em>Weak:</em> {r.weakEvidenceDefinition}</p>}</div>)}</div>
       </Section>
       <Section title="Proposal Archive">
-        {proposals.length === 0 ? <div className="manuscript-border p-6 bg-manuscript/40 text-center"><div className="heading text-ivory text-xl">No proposals submitted yet.</div><p className="text-margin">Share this round or submit the first research proposal.</p></div> : <div className="space-y-3">{proposals.map((p) => <Link key={p.id} href={`/rounds/${roundId}/proposals/${p.id}`} className="block manuscript-border bg-ink/40 p-4 hover:bg-ink/60"><div className="flex justify-between flex-wrap gap-2"><div><div className="mono text-xs text-margin">{p.id}</div><div className="heading text-ivory text-lg">{p.researchTitle || p.title}</div><div className="text-margin text-sm">{p.applicantNameOrOrg || "Private application"}</div></div><div className="text-right"><div className="score-pill">{p.status}</div><div className="text-margin text-xs mt-1 mono">{p.requestedAmount} {p.currency}</div></div></div></Link>)}</div>}
+        {proposals.length === 0 ? <div className="manuscript-border p-6 bg-manuscript/40 text-center"><div className="heading text-ivory text-xl">No applications submitted yet.</div><p className="text-margin">Share this round or commit the first sealed application.</p></div> : <div className="space-y-3">{proposals.map((p) => {
+          const revealed = !!p.revealed;
+          const label = lifecycleLabel({
+            status: p.status,
+            revealed,
+            roundStatus: round?.status,
+            hasReview: !!p._hasReview,
+            hasRanking: !!ranking,
+          });
+          return <Link key={p.id} href={`/rounds/${roundId}/proposals/${p.id}`} className="block manuscript-border bg-ink/40 p-4 hover:bg-ink/60">
+            <div className="flex justify-between flex-wrap gap-2">
+              <div>
+                <div className="mono text-xs text-margin">{p.id}</div>
+                <div className="heading text-ivory text-lg">{revealed ? (p.title || "Untitled") : "Sealed application (hidden before reveal)"}</div>
+                <div className="text-margin text-sm mono">applicant: {p.applicant ? p.applicant.slice(0, 10) + "…" : "—"}</div>
+              </div>
+              <div className="text-right">
+                <div className="score-pill">{label}</div>
+                <div className="text-margin text-[10px] mt-1 mono">on-chain: {p.status}</div>
+                {revealed && <div className="text-margin text-xs mt-1 mono">{p.requested_amount || 0} {p.currency || ""}</div>}
+              </div>
+            </div>
+          </Link>;
+        })}</div>}
       </Section>
       <Section title="Consensus Ranking">
         <div className="dossier-label">Generated by GenLayer consensus</div>

@@ -42,8 +42,11 @@ export const openRound = (roundId: string) => writeContract("open_round", [round
 export const updateRound = (id: string, roundJson: string, rubricJson: string) =>
   writeContract("update_round", [id, roundJson, rubricJson]);
 
-export const submitProposal = (roundId: string, proposalJson: string) =>
-  writeContract("submit_proposal", [roundId, proposalJson]);
+export const submitProposalCommitment = (roundId: string, commitmentHash: string) =>
+  writeContract("submit_proposal_commitment", [roundId, commitmentHash]);
+
+export const revealProposal = (proposalId: string, proposalJson: string, salt: string) =>
+  writeContract("reveal_proposal", [proposalId, proposalJson, salt]);
 
 export const addEvidence = (id: string, proposalId: string, evidenceJson: string) =>
   writeContract("add_evidence", [id, proposalId, evidenceJson]);
@@ -183,9 +186,9 @@ export async function createRoundWithId(roundJson: string, rubricJson: string) {
   return { txHash: result, roundId };
 }
 
-export async function submitProposalWithId(roundId: string, proposalJson: string) {
+export async function submitProposalCommitmentWithId(roundId: string, commitmentHash: string) {
   const before = new Set(await getRoundProposals(roundId));
-  const result = await submitProposal(roundId, proposalJson);
+  const result = await submitProposalCommitment(roundId, commitmentHash);
   const after = await getRoundProposals(roundId);
   const proposalId = after.find((id) => !before.has(id)) || after.at(-1);
   if (!proposalId) throw new Error("Unable to resolve contract-generated proposal ID.");

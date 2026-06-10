@@ -37,6 +37,7 @@ export default function CreateRound() {
     currency: "USD",
     applicationStart: new Date().toISOString().slice(0, 10),
     applicationDeadline: "",
+    revealDeadline: "",
     reviewDeadline: "",
     appealDeadline: "",
     milestonePolicy: "",
@@ -67,6 +68,7 @@ export default function CreateRound() {
         currency: form.currency,
         application_start: toUnixSeconds(form.applicationStart),
         application_deadline: toUnixSeconds(form.applicationDeadline),
+        reveal_deadline: toUnixSeconds(form.revealDeadline),
         review_deadline: toUnixSeconds(form.reviewDeadline),
         appeal_deadline: toUnixSeconds(form.appealDeadline),
         milestone_policy: form.milestonePolicy,
@@ -135,7 +137,8 @@ export default function CreateRound() {
         </>}
         {step === 7 && <div className="grid grid-cols-2 gap-4">
           <Field label="Application Start" type="date" value={form.applicationStart} onChange={(v) => upd("applicationStart", v)} />
-          <Field label="Application Deadline" type="date" value={form.applicationDeadline} onChange={(v) => upd("applicationDeadline", v)} />
+          <Field label="Application Deadline (commit)" type="date" value={form.applicationDeadline} onChange={(v) => upd("applicationDeadline", v)} />
+          <Field label="Reveal Deadline" type="date" value={form.revealDeadline} onChange={(v) => upd("revealDeadline", v)} />
           <Field label="Review Deadline" type="date" value={form.reviewDeadline} onChange={(v) => upd("reviewDeadline", v)} />
           <Field label="Appeal Deadline" type="date" value={form.appealDeadline} onChange={(v) => upd("appealDeadline", v)} />
         </div>}
@@ -159,6 +162,7 @@ export default function CreateRound() {
           <pre className="text-xs text-margin overflow-auto max-h-80 bg-ink/40 p-3 mono">{JSON.stringify({ form, rubric, deadlines: {
             application_start: toUnixSeconds(form.applicationStart),
             application_deadline: toUnixSeconds(form.applicationDeadline),
+            reveal_deadline: toUnixSeconds(form.revealDeadline),
             review_deadline: toUnixSeconds(form.reviewDeadline),
             appeal_deadline: toUnixSeconds(form.appealDeadline),
           } }, null, 2)}</pre>

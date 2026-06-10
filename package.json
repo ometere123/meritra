@@ -6,14 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:contract": "node scripts/test-all.mjs",
+    "test:contract:A": "node scripts/test-A-commit.mjs",
+    "test:contract:B": "node scripts/test-B-reveal.mjs",
+    "test:contract:C": "node scripts/test-C-invalid-reveal.mjs",
+    "test:contract:D": "node scripts/test-D-review.mjs",
+    "test:contract:E": "node scripts/test-E-rank.mjs",
+    "test:contract:F": "node scripts/test-F-milestone-appeal.mjs"
   },
   "dependencies": {
     "@farcaster/mini-app-solana": "^2.0.0",
     "@hookform/resolvers": "^3.9.0",
     "@privy-io/react-auth": "^3.29.2",
     "@stripe/crypto": "^1.1.0",
-    "@supabase/supabase-js": "^2.108.1",
     "genlayer-js": "^1.2.0",
     "idb": "^8.0.0",
     "next": "^15.0.0",
@@ -25,12 +33,14 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.0.0",
+    "playwright": "^1.60.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.6.0"
