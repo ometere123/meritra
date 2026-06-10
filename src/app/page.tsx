@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ContractNotice from "@/components/ui/ContractNotice";
+import IntroCard from "@/components/landing/IntroCard";
 
 const meridianNodes = [
   { label: "Round Criteria", side: "left" },
@@ -22,6 +23,7 @@ const instruments = [
 export default function Landing() {
   return (
     <div>
+      <IntroCard />
       {/* Hero - Meridian Table */}
       <section className="relative max-w-7xl mx-auto px-6 pt-10 pb-20">
         <Link href="/rounds" className="tab-button absolute top-10 left-6">View Grant Rounds</Link>
