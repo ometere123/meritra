@@ -4,7 +4,7 @@ Research merit reviewed by evidence, feasibility, and consensus.
 
 ## Stack
 - Next.js 15 (App Router) · TypeScript strict · Tailwind CSS
-- GenLayer JS SDK (`genlayer-js` 1.2+) · Viem
+- GenLayer JS SDK (`genlayer-js` 1.1.7) · Viem
 - React Hook Form · Zod
 - npm only
 
