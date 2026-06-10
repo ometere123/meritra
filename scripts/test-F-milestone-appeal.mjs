@@ -1,5 +1,5 @@
 /**
- * Test F — Milestone + Appeal nondeterministic flows
+ * Test F - Milestone + Appeal nondeterministic flows
  *   1. Build a round to FINALIZED with one funded proposal.
  *   2. Applicant submits a milestone report.
  *   3. review_milestone runs through prompt_non_comparative (nondet).
@@ -17,7 +17,7 @@ const ALLOWED_MILESTONE = new Set(["ACCEPTED","PARTIALLY_ACCEPTED","REJECTED","N
 const ALLOWED_APPEAL = new Set(["ORIGINAL_DECISION_UPHELD","ORIGINAL_DECISION_ADJUSTED","MORE_EVIDENCE_REQUIRED","ESCALATE_TO_HUMAN_PANEL","APPEAL_REJECTED"]);
 const ALLOWED_VERDICTS = new Set(["RECOMMENDED_FOR_FUNDING","PARTIAL_FUNDING_RECOMMENDED","WAITLISTED","REJECTED","NEEDS_MORE_EVIDENCE","ESCALATE"]);
 
-section("TEST F — Milestone + Appeal (both nondet)");
+section("TEST F - Milestone + Appeal (both nondet)");
 
 const { round, rubric } = freshRoundPayload();
 await write(accounts.creator.client, "create_round",

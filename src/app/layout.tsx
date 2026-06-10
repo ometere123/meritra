@@ -10,7 +10,7 @@ const body = Source_Sans_3({ subsets: ["latin"], weight: ["300","400","500","600
 const mono = Azeret_Mono({ subsets: ["latin"], weight: ["400","500"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "MERITRA — Research Grant Reviewer",
+  title: "MERITRA - Research Grant Reviewer",
   description:
     "Research merit reviewed by evidence, feasibility, and consensus. A GenLayer-powered research grant review and funding suitability layer.",
 };

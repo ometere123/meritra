@@ -1,5 +1,5 @@
 /**
- * Test E — Ranking
+ * Test E - Ranking
  *   1. Build a round with multiple revealed proposals.
  *   2. review_proposal each.
  *   3. rank_round_proposals.
@@ -16,7 +16,7 @@ import { accounts, write, readJson, section, log, canonical, sha256hex, randomSa
 const ALLOWED_VERDICTS = new Set(["RECOMMENDED_FOR_FUNDING","PARTIAL_FUNDING_RECOMMENDED","WAITLISTED","REJECTED","NEEDS_MORE_EVIDENCE","ESCALATE"]);
 const ALLOWED_RANKING_STATUS = new Set(["RANKED","PARTIALLY_RANKED","NEEDS_MORE_EVIDENCE","ESCALATE"]);
 
-section("TEST E — Ranking & finalisation");
+section("TEST E - Ranking & finalisation");
 
 const { round, rubric } = freshRoundPayload();
 await write(accounts.creator.client, "create_round",

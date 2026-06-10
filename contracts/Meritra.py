@@ -2,7 +2,7 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 from genlayer import *
-# Explicit error import — `from genlayer import *` does not consistently surface
+# Explicit error import - `from genlayer import *` does not consistently surface
 # VmUserError across SDK versions, which was the source of NameError crashes in
 # the previously deployed contract. Try the modern path first, fall back to the
 # legacy gl.vm.UserError if the host runtime only exposes that surface.
@@ -607,7 +607,7 @@ Return STRICT JSON ONLY with this exact schema:
                 "budget_reasonableness, ethics_and_risk, evidence_strength) must be present with score and reason. "
                 "positive_signals, red_flags and missing_information must be arrays of strings. "
                 "reasoning_summary and recommended_action must be non-empty strings. "
-                "The judgement must be grounded in the supplied proposal text, rubric, and evidence — no invented facts. "
+                "The judgement must be grounded in the supplied proposal text, rubric, and evidence - no invented facts. "
                 "A validator should ACCEPT outputs whose verdict and scores are consistent with the rubric and evidence even "
                 "if free-text wording differs from another plausible review."
             ),

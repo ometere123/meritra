@@ -60,7 +60,7 @@ export async function commitmentHash(canonicalJson: string, salt: string): Promi
 
 // --------------------------------------------------------------------------
 // Local pending-reveal store. Lives in localStorage so applicants can recover
-// across refreshes. Plain JSON — backup/download is offered via download button.
+// across refreshes. Plain JSON - backup/download is offered via download button.
 // --------------------------------------------------------------------------
 
 function readStore(): PendingReveal[] {

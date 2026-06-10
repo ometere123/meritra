@@ -1,4 +1,4 @@
-# MERITRA — GenLayer Research Grant Reviewer
+# MERITRA - GenLayer Research Grant Reviewer
 
 Research merit reviewed by evidence, feasibility, and consensus.
 
@@ -34,9 +34,9 @@ Open http://localhost:3000.
 `contracts/Meritra.py` is the source of truth. Deterministic writes record
 data; non-deterministic GenLayer functions produce the merit/funding judgement:
 
-- `review_proposal(proposal_id)` — main consensus review
-- `rank_round_proposals(round_id)` — round-level ranking
-- `detect_proposal_similarity(a, b)` — originality check
+- `review_proposal(proposal_id)` - main consensus review
+- `rank_round_proposals(round_id)` - round-level ranking
+- `detect_proposal_similarity(a, b)` - originality check
 - `review_appeal(appeal_id)`
 - `review_milestone(milestone_id)`
 

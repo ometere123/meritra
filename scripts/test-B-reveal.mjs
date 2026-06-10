@@ -1,5 +1,5 @@
 /**
- * Test B — Reveal phase
+ * Test B - Reveal phase
  *   Builds on a freshly committed round (creates its own state inline).
  *   1. Commit one proposal.
  *   2. close_round → REVEAL_PHASE.
@@ -10,7 +10,7 @@
 import { accounts, write, readJson, section, log, canonical, sha256hex, randomSalt,
   freshRoundPayload, PROPOSAL_TEMPLATES, assertEq, assertTrue } from "./e2e-lib.mjs";
 
-section("TEST B — Reveal phase");
+section("TEST B - Reveal phase");
 
 const { round, rubric } = freshRoundPayload();
 await write(accounts.creator.client, "create_round",

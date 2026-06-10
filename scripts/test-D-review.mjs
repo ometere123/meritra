@@ -1,11 +1,11 @@
 /**
- * Test D — Nondeterministic scoring
+ * Test D - Nondeterministic scoring
  *   1. Build a round with one revealed proposal.
  *   2. start_reviewing.
  *   3. Confirm review_proposal cannot run BEFORE reveal (would have failed
- *      earlier — we proved this in tests A/C indirectly).
+ *      earlier - we proved this in tests A/C indirectly).
  *   4. Call review_proposal on the revealed proposal.
- *   5. Confirm the tx is ACCEPTED (not UNDETERMINED) — leader_receipt's
+ *   5. Confirm the tx is ACCEPTED (not UNDETERMINED) - leader_receipt's
  *      execution_result must be SUCCESS/ACCEPTED.
  *   6. Read back the stored review and assert schema: verdict, merit_score,
  *      risk_level, confidence, recommended_funding_amount, reasoning_summary.
@@ -21,7 +21,7 @@ const ALLOWED_FUNDING = new Set(["VERY_HIGH","HIGH","MODERATE","LOW","NOT_SUITAB
 const ALLOWED_RISK = new Set(["LOW","MEDIUM","HIGH","CRITICAL"]);
 const ALLOWED_PLAG = new Set(["LOW","MEDIUM","HIGH","CRITICAL"]);
 
-section("TEST D — Nondet review (uses prompt_non_comparative)");
+section("TEST D - Nondet review (uses prompt_non_comparative)");
 
 const { round, rubric } = freshRoundPayload();
 await write(accounts.creator.client, "create_round",

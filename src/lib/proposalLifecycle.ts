@@ -25,7 +25,7 @@ export function lifecycleLabel(opts: {
   hasRanking?: boolean;
 }): LifecycleLabel {
   const s = (opts.status || "").toUpperCase();
-  // Draft state (proposal exists locally but not on-chain yet — used only by
+  // Draft state (proposal exists locally but not on-chain yet - used only by
   // the submit wizard before commitment).
   if (s === "DRAFT") return "Draft";
 

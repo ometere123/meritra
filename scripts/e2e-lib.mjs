@@ -48,7 +48,7 @@ export const accounts = Object.fromEntries(
 export const log = (...a) => console.log(...a);
 export const section = (t) => log(`\n=== ${t} ===`);
 
-// Canonical JSON — matches the contract's _canonical_proposal_json (sorted
+// Canonical JSON - matches the contract's _canonical_proposal_json (sorted
 // keys, no whitespace, ensure_ascii=False).
 export function canonical(obj) {
   const sort = (v) => {
@@ -105,7 +105,7 @@ export async function write(client, fn, args, label, { retries = 3 } = {}) {
     try { return await writeOnce(client, fn, args, label); }
     catch (e) {
       lastErr = e;
-      if (i < retries) { log(`    ! ${fn} attempt ${i + 1} failed: ${e.message} — retrying`); await new Promise(r => setTimeout(r, 5000)); }
+      if (i < retries) { log(`    ! ${fn} attempt ${i + 1} failed: ${e.message} - retrying`); await new Promise(r => setTimeout(r, 5000)); }
     }
   }
   throw lastErr;
@@ -134,14 +134,14 @@ export function assertTrue(cond, label) {
   log(`  ✔ ${label}`);
 }
 
-// Standard valid round payload + rubric — used by every suite that needs a
+// Standard valid round payload + rubric - used by every suite that needs a
 // round. Deadlines computed from now so the round is in its open window.
 export function freshRoundPayload(overrides = {}) {
   const now = Math.floor(Date.now() / 1000);
   const day = 86400;
   return {
     round: {
-      title: "Meritra e2e — auto round",
+      title: "Meritra e2e - auto round",
       description: "Automated e2e suite round.",
       funding_pool: 60000,
       currency: "USD",

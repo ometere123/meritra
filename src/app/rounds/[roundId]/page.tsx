@@ -63,7 +63,7 @@ export default function RoundDetail() {
     try { await fn(); await load(); } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
   };
 
-  const publicSummary = useMemo(() => round?.public_summary || round?.description || "—", [round]);
+  const publicSummary = useMemo(() => round?.public_summary || round?.description || "-", [round]);
 
   if (loading) return <div className="max-w-7xl mx-auto px-6 py-12 text-margin">Loading round...</div>;
   return <div className="max-w-7xl mx-auto px-6 py-12">
@@ -89,7 +89,7 @@ export default function RoundDetail() {
           <Meta label="Status" value={round.status} accent />
           <Meta label="Area" value={round.researchArea} />
           <Meta label="Pool" value={`${round.funding_pool || round.fundingPool || 0} ${round.currency || ""}`} />
-          <Meta label="Deadline" value={round.application_deadline ? new Date(toSecs(round.application_deadline) * 1000).toISOString().slice(0, 10) : "—"} />
+          <Meta label="Deadline" value={round.application_deadline ? new Date(toSecs(round.application_deadline) * 1000).toISOString().slice(0, 10) : "-"} />
           <Meta label="Proposals" value={proposals.length} />
         </div>
       </div>
@@ -115,7 +115,7 @@ export default function RoundDetail() {
               <div>
                 <div className="mono text-xs text-margin">{p.id}</div>
                 <div className="heading text-ivory text-lg">{revealed ? (p.title || "Untitled") : "Sealed application (hidden before reveal)"}</div>
-                <div className="text-margin text-sm mono">applicant: {p.applicant ? p.applicant.slice(0, 10) + "…" : "—"}</div>
+                <div className="text-margin text-sm mono">applicant: {p.applicant ? p.applicant.slice(0, 10) + "…" : "-"}</div>
               </div>
               <div className="text-right">
                 <div className="score-pill">{label}</div>

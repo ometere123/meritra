@@ -1,10 +1,10 @@
 /**
- * Meritra full e2e — runs suites in the order from the spec:
+ * Meritra full e2e - runs suites in the order from the spec:
  *   0. Connect + read contract basic state
  *   A. Commit phase
  *   B. Reveal phase
  *   C. Invalid reveal
- *   D. Nondet scoring (review_proposal — uses prompt_non_comparative)
+ *   D. Nondet scoring (review_proposal - uses prompt_non_comparative)
  *   E. Ranking + finalisation
  *   F. Milestone + appeal (both nondet)
  *
@@ -32,7 +32,7 @@ function run(suite, path) {
 }
 
 async function main() {
-  section("STEP 0 — Connect + read basic state");
+  section("STEP 0 - Connect + read basic state");
   log(`  contract: ${CONTRACT}`);
   for (const [k, v] of Object.entries(accounts)) {
     const bal = await readClient.getBalance({ address: v.addr });

@@ -22,7 +22,7 @@ const instruments = [
 export default function Landing() {
   return (
     <div>
-      {/* Hero — Meridian Table */}
+      {/* Hero - Meridian Table */}
       <section className="relative max-w-7xl mx-auto px-6 pt-10 pb-20">
         <Link href="/rounds" className="tab-button absolute top-10 left-6">View Grant Rounds</Link>
         <Link href="#why-genlayer" className="dossier-label absolute bottom-6 right-6 underline-offset-4 hover:underline">

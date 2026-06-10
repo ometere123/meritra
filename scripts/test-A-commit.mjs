@@ -1,5 +1,5 @@
 /**
- * Test A — Commit phase
+ * Test A - Commit phase
  *   1. Create grant round.
  *   2. Open round.
  *   3. Applicant A commits a proposal hash.
@@ -10,7 +10,7 @@
 import { accounts, write, readJson, section, log, canonical, sha256hex, randomSalt,
   freshRoundPayload, PROPOSAL_TEMPLATES, assertEq, assertTrue, expectRevert } from "./e2e-lib.mjs";
 
-section("TEST A — Commit phase");
+section("TEST A - Commit phase");
 
 // 1. Create round
 const { round, rubric } = freshRoundPayload();
@@ -52,7 +52,7 @@ const err = await expectRevert(() =>
 );
 log(`  ✔ spoof reveal blocked: ${err.message.split("\n")[0].slice(0, 120)}`);
 
-// 6. Even original applicant cannot reveal yet — round is still OPEN, not REVEAL_PHASE
+// 6. Even original applicant cannot reveal yet - round is still OPEN, not REVEAL_PHASE
 const err2 = await expectRevert(() =>
   write(accounts.A.client, "reveal_proposal", [proposalId, canonStr, salt], "applicantA(early)", { retries: 0 })
 );

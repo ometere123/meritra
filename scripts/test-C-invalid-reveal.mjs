@@ -1,5 +1,5 @@
 /**
- * Test C — Invalid reveal
+ * Test C - Invalid reveal
  *   1. Commit proposal A.
  *   2. close_round.
  *   3. Try to reveal a DIFFERENT proposal JSON for the same proposal_id.
@@ -10,7 +10,7 @@
 import { accounts, write, readJson, section, log, canonical, sha256hex, randomSalt,
   freshRoundPayload, PROPOSAL_TEMPLATES, assertEq, expectRevert } from "./e2e-lib.mjs";
 
-section("TEST C — Invalid reveal");
+section("TEST C - Invalid reveal");
 
 const { round, rubric } = freshRoundPayload();
 await write(accounts.creator.client, "create_round",
@@ -46,7 +46,7 @@ const err2 = await expectRevert(() =>
 );
 log(`  ✔ wrong salt rejected: ${err2.message.split("\n")[0].slice(0, 140)}`);
 
-// 4. Now reveal correctly — must succeed
+// 4. Now reveal correctly - must succeed
 await write(accounts.A.client, "reveal_proposal", [proposalId, canonA, saltA], "applicantA(valid)");
 const p = await readJson("get_proposal", [proposalId]);
 assertEq(p.status, "REVEALED", "valid reveal accepted");

@@ -71,7 +71,7 @@ export default function ProposalDetail() {
         <div className="grid md:grid-cols-6 gap-4">
           <Meta label="Proposal ID" value={proposalId} mono />
           <Meta label="Round" value={roundId} mono />
-          <Meta label="Applicant" value={proposal.applicant ? proposal.applicant.slice(0, 10) + "…" : "—"} mono />
+          <Meta label="Applicant" value={proposal.applicant ? proposal.applicant.slice(0, 10) + "…" : "-"} mono />
           <Meta label="Visibility" value={sealed ? "SEALED · hidden before reveal" : "PUBLIC · revealed"} accent />
           <Meta label="Requested" value={sealed ? "Hidden before reveal" : `${proposal.requested_amount || 0} ${proposal.currency || ""}`} />
           <Meta label="Lifecycle" value={lifecycleLabel({ status: proposal.status, revealed: !!proposal.revealed, roundStatus: round?.status, hasReview: !!review, hasRanking: !!ranking })} accent />
@@ -81,7 +81,7 @@ export default function ProposalDetail() {
         {sealed && (
           <div className="manuscript-border bg-ink/40 p-3 mt-4">
             <div className="dossier-label">Commitment hash</div>
-            <div className="mono text-xs text-margin break-all">{proposal.commitment_hash || "—"}</div>
+            <div className="mono text-xs text-margin break-all">{proposal.commitment_hash || "-"}</div>
             <p className="text-margin text-xs mt-2">
               This application is commit-reveal protected. Content is hidden before reveal. After the creator closes the
               commitment phase, the applicant can reveal to make the proposal publicly visible for GenLayer consensus review.
@@ -100,7 +100,7 @@ export default function ProposalDetail() {
           ) : (
             <>
               <h2 className="heading text-2xl">Abstract</h2>
-              <p className="text-sm whitespace-pre-wrap">{proposal.abstract || proposal.public_summary || "—"}</p>
+              <p className="text-sm whitespace-pre-wrap">{proposal.abstract || proposal.public_summary || "-"}</p>
               <Subsection title="Public Summary" body={proposal.public_summary} />
               <Subsection title="Research Question" body={proposal.research_question} />
               <Subsection title="Methodology" body={proposal.methodology} />
@@ -189,9 +189,9 @@ export default function ProposalDetail() {
 
             <div className="manuscript-border bg-manuscript/60 p-5">
               <div className="dossier-label">Reasoning summary</div>
-              <p className="text-ivory/85 mt-1">{review.reasoning_summary || "—"}</p>
+              <p className="text-ivory/85 mt-1">{review.reasoning_summary || "-"}</p>
               <div className="dossier-label mt-3">Recommended action</div>
-              <p className="text-ivory/85">{review.recommended_action || "—"}</p>
+              <p className="text-ivory/85">{review.recommended_action || "-"}</p>
             </div>
 
             <div className="flex gap-3">
@@ -213,5 +213,5 @@ function Meta({ label, value, mono, accent }: any) {
   return <div><div className="dossier-label">{label}</div><div className={`text-sm mt-1 ${mono ? "mono" : ""} ${accent ? "text-gold" : "text-ivory"}`}>{value}</div></div>;
 }
 function Metric({ label, value }: any) { return <div><span className="text-margin">{label}</span><div className="text-ivory">{value}</div></div>; }
-function ReviewCard({ title, sub }: any) { return <div className="manuscript-border bg-ink/40 p-4"><div className="dossier-label">{title}</div><div className="heading text-gold text-2xl mt-1">{sub?.score ?? "—"}</div><p className="text-margin text-xs mt-1">{sub?.reason}</p>{sub?.plagiarism_risk && <div className="mono text-xs text-ivory mt-2">plagiarism risk: {sub.plagiarism_risk}</div>}</div>; }
+function ReviewCard({ title, sub }: any) { return <div className="manuscript-border bg-ink/40 p-4"><div className="dossier-label">{title}</div><div className="heading text-gold text-2xl mt-1">{sub?.score ?? "-"}</div><p className="text-margin text-xs mt-1">{sub?.reason}</p>{sub?.plagiarism_risk && <div className="mono text-xs text-ivory mt-2">plagiarism risk: {sub.plagiarism_risk}</div>}</div>; }
 function Block({ title, items, tone }: any) { const colour = tone === "laurel" ? "text-laurel" : tone === "carmine" ? "text-carmine" : "text-margin"; return <div className="manuscript-border bg-ink/40 p-4"><div className={`dossier-label ${colour}`}>{title}</div>{items && items.length > 0 ? <ul className="text-ivory/85 text-sm space-y-1 mt-2 list-disc list-inside">{items.map((x: string, i: number) => <li key={i}>{x}</li>)}</ul> : <p className="text-margin text-xs mt-2">None.</p>}</div>; }

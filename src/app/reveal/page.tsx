@@ -89,7 +89,7 @@ export default function RevealDashboard() {
                   <div className="score-pill">
                     {st.s === "revealed" ? "REVEALED" : st.s === "revealing" ? "REVEALING…" : st.s === "error" ? "ERROR" : "SEALED"}
                   </div>
-                  <div className="mono text-[10px] text-margin mt-1">round: {st.roundStatus || "—"}</div>
+                  <div className="mono text-[10px] text-margin mt-1">round: {st.roundStatus || "-"}</div>
                 </div>
               </div>
               <div className="mono text-[10px] text-margin mt-3 break-all">commit: {it.commitmentHash}</div>

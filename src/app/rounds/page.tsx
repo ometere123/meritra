@@ -63,12 +63,12 @@ export default function RoundsPage() {
                 <div>
                   <div className="dossier-label">Pool</div>
                   <div className="text-ivory mono">
-                    {data.fundingPool ? `${data.fundingPool} ${data.currency || ""}` : "—"}
+                    {data.fundingPool ? `${data.fundingPool} ${data.currency || ""}` : "-"}
                   </div>
                 </div>
                 <div>
                   <div className="dossier-label">Deadline</div>
-                  <div className="text-ivory mono">{data.applicationDeadline?.slice(0,10) || "—"}</div>
+                  <div className="text-ivory mono">{data.applicationDeadline?.slice(0,10) || "-"}</div>
                 </div>
                 <div>
                   <div className="dossier-label">Status</div>

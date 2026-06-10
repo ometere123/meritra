@@ -105,7 +105,7 @@ export default function SubmitProposal() {
         <div className="manuscript-border bg-manuscript/70 p-6 mt-6 space-y-3">
           <p className="text-ivory">
             Your application is now <strong className="text-gold">sealed on-chain</strong>. It is hidden before reveal.
-            After the grant creator closes the commitment phase, you must come back and reveal — your application becomes publicly visible for GenLayer consensus review only after a successful reveal.
+            After the grant creator closes the commitment phase, you must come back and reveal - your application becomes publicly visible for GenLayer consensus review only after a successful reveal.
           </p>
           <div className="manuscript-border bg-ink/40 p-4 mono text-xs space-y-2">
             <div><span className="text-margin">Proposal ID:</span> <span className="text-ivory">{backup.proposalId}</span></div>
@@ -136,7 +136,7 @@ export default function SubmitProposal() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
-      <div className="dossier-label">Sealed Application — Commit Phase</div>
+      <div className="dossier-label">Sealed Application - Commit Phase</div>
       <h1 className="section-title mt-1">Submit Sealed Research Proposal</h1>
       <ContractNotice />
       <div className="manuscript-border bg-manuscript/40 p-4 mt-4 text-margin text-sm">
