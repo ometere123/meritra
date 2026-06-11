@@ -40,7 +40,14 @@ export default function RoundDetail() {
         getRoundProposals(roundId), getRoundRanking(roundId),
       ]);
       setRound(r);
-      setRubric(rb || []);
+      // Rubric is stored on-chain as either { items: [...] } (the canonical
+      // dict shape the contract _json_load requires) or - in older test
+      // fixtures - as a bare [...] array. Accept both so .map never crashes.
+      const rb2: any = rb;
+      const rubricArr: any[] = Array.isArray(rb2)
+        ? rb2
+        : (rb2 && Array.isArray(rb2.items) ? rb2.items : []);
+      setRubric(rubricArr);
       setRanking(rk);
       const props = await Promise.all(ids.map(async (id) => {
         const p = await getProposal(id);

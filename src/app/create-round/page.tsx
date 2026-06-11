@@ -87,7 +87,9 @@ export default function CreateRound() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      const { roundId } = await createRoundWithId(JSON.stringify(roundJson), JSON.stringify(rubric));
+      // Contract _json_load(rubric_json) requires a JSON object, not an array,
+      // so wrap the rubric rows in { items }. The round detail page unwraps either shape.
+      const { roundId } = await createRoundWithId(JSON.stringify(roundJson), JSON.stringify({ items: rubric }));
       router.push(`/rounds/${roundId}`);
     } catch (e) {
       if (e instanceof ContractNotConfiguredError) setErr("GenLayer contract is not configured.");

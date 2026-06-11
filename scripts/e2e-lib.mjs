@@ -10,7 +10,7 @@ import { studionet } from "genlayer-js/chains";
 export const RPC = process.env.MERITRA_RPC || "https://studio.genlayer.com/api";
 export const CONTRACT =
   process.env.NEXT_PUBLIC_GENLAYER_CONTRACT_ADDRESS ||
-  "0x4033543ED5997EA9da38f4562d67acF114b34b41"; // overridden by env after redeploy
+  "0xDC4e9b9F71d47f4021E8Cb8aa443ffA3A77306Ab"; // overridden by env after redeploy
 
 /**
  * Test wallet keys. NEVER commit real private keys to this file. Supply five
@@ -158,14 +158,20 @@ export function freshRoundPayload(overrides = {}) {
       eligibilityCriteria: "Open.",
       ...overrides.round,
     },
+    // Contract _json_load requires a dict for rubric_json. The frontend
+    // round detail page unwraps { items } back into the array it renders.
     rubric: {
-      // Contract validates rubric_json with _json_load (object). Wrap items.
       items: overrides.rubricItems || [
-        { id: "r1", category: "RESEARCH_RELEVANCE", weight: 20, description: "Aligns with round goals." },
-        { id: "r2", category: "METHODOLOGY_QUALITY", weight: 20, description: "Sound design." },
-        { id: "r3", category: "FEASIBILITY", weight: 20, description: "Realistic plan." },
-        { id: "r4", category: "EXPECTED_IMPACT", weight: 20, description: "Credible impact." },
-        { id: "r5", category: "BUDGET_REASONABLENESS", weight: 20, description: "Costs justified." },
+        { id: "r1", category: "RESEARCH_RELEVANCE", weight: 20, description: "Aligns with round goals.",
+          strongEvidenceDefinition: "Direct fit.", weakEvidenceDefinition: "Loose fit." },
+        { id: "r2", category: "METHODOLOGY_QUALITY", weight: 20, description: "Sound design.",
+          strongEvidenceDefinition: "Sound.", weakEvidenceDefinition: "Unclear." },
+        { id: "r3", category: "FEASIBILITY", weight: 20, description: "Realistic plan.",
+          strongEvidenceDefinition: "Realistic.", weakEvidenceDefinition: "Implausible." },
+        { id: "r4", category: "EXPECTED_IMPACT", weight: 20, description: "Credible impact.",
+          strongEvidenceDefinition: "Specific.", weakEvidenceDefinition: "Vague." },
+        { id: "r5", category: "BUDGET_REASONABLENESS", weight: 20, description: "Costs justified.",
+          strongEvidenceDefinition: "Itemised.", weakEvidenceDefinition: "Inflated." },
       ],
     },
   };
